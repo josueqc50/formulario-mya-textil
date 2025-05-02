@@ -11,9 +11,20 @@ scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/au
 creds_data = json.loads(os.environ['GOOGLE_CREDS_JSON'])
 creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_data, scope)
 client = gspread.authorize(creds)
-sheet = client.open_by_key("1Ezm-sc-fbrtY5erE4NCyZKIyu_H6FP_BerxDUdzm-r4").sheet1
 
-# HTML con JS y autocompletado desde Google Sheets
+# Hojas de trabajo
+sheet_ventas = client.open_by_key("1Ezm-sc-fbrtY5erE4NCyZKIyu_H6FP_BerxDUdzm-r4").sheet1
+sheet_datos = client.open_by_key("14w5C5rPPUHHzPgQRiVKfRMM97j7qRRqyLB0cACjx56c").worksheet("DATOS")
+
+# Obtener listas desde la hoja DATOS
+colores = sheet_datos.col_values(1)[1:]
+productos = sheet_datos.col_values(2)[1:]
+clientes = sheet_datos.col_values(3)[1:]
+
+# Construir opciones HTML
+def construir_options(lista):
+    return ''.join([f'<option value="{item}">{item}</option>' for item in lista])
+
 HTML_FORM = """
 <!doctype html>
 <html>
@@ -24,7 +35,7 @@ HTML_FORM = """
         .form-wrapper { background: white; padding: 20px; border-radius: 8px; max-width: 1000px; margin: auto; }
         table { width: 100%; border-collapse: collapse; margin-top: 10px; }
         th, td { border: 1px solid #ccc; padding: 6px; text-align: center; }
-        input { width: 100%; box-sizing: border-box; padding: 4px; }
+        input, select { width: 100%; box-sizing: border-box; padding: 4px; }
         button { margin-top: 10px; padding: 10px 20px; background: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer; }
         .total-row td { font-weight: bold; }
     </style>
@@ -47,10 +58,12 @@ HTML_FORM = """
     <form action="/submit" method="post">
         <h2>MYA TEXTIL</h2>
         <label>Fecha: <input type="date" name="fecha" required></label>
-        <label>Cliente: <input type="text" name="cliente" list="clientes" required></label>
-        <datalist id="clientes">
-            <option value="Cliente A"><option value="Cliente B"><option value="Cliente C">
-        </datalist>
+        <label>Cliente:
+            <select name="cliente" required>
+                <option value="">--Seleccionar Cliente--</option>
+                {{ opciones_clientes|safe }}
+            </select>
+        </label>
         <table>
             <thead>
                 <tr><th>#</th><th>Color</th><th>Producto</th><th>Partida</th><th>Kg</th><th>Precio Unitario</th><th>Total</th></tr>
@@ -59,8 +72,18 @@ HTML_FORM = """
                 {% for i in range(1, 31) %}
                 <tr>
                     <td>{{ i }}</td>
-                    <td><input type="text" name="color_{{ i }}"></td>
-                    <td><input type="text" name="producto_{{ i }}" list="productos"></td>
+                    <td>
+                        <select name="color_{{ i }}">
+                            <option value="">--Color--</option>
+                            {{ opciones_colores|safe }}
+                        </select>
+                    </td>
+                    <td>
+                        <select name="producto_{{ i }}">
+                            <option value="">--Producto--</option>
+                            {{ opciones_productos|safe }}
+                        </select>
+                    </td>
                     <td><input type="text" name="partida_{{ i }}"></td>
                     <td><input type="number" name="kg_{{ i }}" id="kg_{{ i }}" step="0.01" oninput="calcularTotales()"></td>
                     <td><input type="number" name="precio_{{ i }}" id="precio_{{ i }}" step="0.01" oninput="calcularTotales()"></td>
@@ -82,7 +105,12 @@ HTML_FORM = """
 
 @app.route('/')
 def index():
-    return render_template_string(HTML_FORM)
+    return render_template_string(
+        HTML_FORM,
+        opciones_colores=construir_options(colores),
+        opciones_productos=construir_options(productos),
+        opciones_clientes=construir_options(clientes)
+    )
 
 @app.route('/submit', methods=['POST'])
 def submit():
@@ -97,10 +125,8 @@ def submit():
         precio = request.form.get(f'precio_{i}', '')
         total = request.form.get(f'total_{i}', '')
         if any([color, producto, partida, kg, precio, total]):
-            sheet.append_row([fecha, cliente, color, producto, partida, kg, precio, total, vendedor])
+            sheet_ventas.append_row([fecha, cliente, color, producto, partida, kg, precio, total, vendedor])
     return redirect('/')
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=10000)
-
-#Actualizado formulario con 30 líneas y total automático
