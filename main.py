@@ -103,4 +103,4 @@ def submit():
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=10000)
 
-Actualizado formulario con 30 líneas y total automático
+#Actualizado formulario con 30 líneas y total automático
