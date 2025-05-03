@@ -1,4 +1,3 @@
-
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import gspread
@@ -14,6 +13,8 @@ scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/au
 creds_data = json.loads(os.environ['GOOGLE_CREDS_JSON'])
 creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_data, scope)
 client = gspread.authorize(creds)
+
+# Hoja de ventas y de datos
 sheet = client.open_by_key("1Ezm-sc-fbrtY5erE4NCyZKIyu_H6FP_BerxDUdzm-r4").sheet1
 datos_sheet = client.open_by_key("14w5C5rPPUHHzPgQRiVKfRMM97j7qRRqyLB0cACjx56c").worksheet("DATOS")
 
@@ -30,11 +31,22 @@ def guardar_ventas():
         if not filas:
             return jsonify({"error": "No se recibieron filas válidas."}), 400
 
+        # Obtener número de venta actual y aumentarlo
+        ultima = sheet.cell(sheet.row_count, 1).value
+        proximo = obtener_siguiente_numero()
+
         for fila in filas:
-            sheet.append_row(fila)
+            fila_con_numero = [proximo] + fila
+            sheet.append_row(fila_con_numero)
 
         return jsonify({"mensaje": "Datos guardados correctamente."})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
+@app.route("/proximo-numero", methods=["GET"])
+def proximo_numero():
+    try:
+        return jsonify({"numero": obtener_siguiente_numero()})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -52,6 +64,11 @@ def obtener_opciones():
         })
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+def obtener_siguiente_numero():
+    registros = sheet.get_all_values()
+    numeros = [int(fila[0]) for fila in registros[1:] if fila[0].isdigit()]
+    return str(max(numeros) + 1) if numeros else "1"
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=10000)
