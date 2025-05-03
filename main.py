@@ -24,10 +24,9 @@ productos = sheet_datos.col_values(2)[1:]
 clientes = sheet_datos.col_values(3)[1:]
 
 def construir_options(lista):
-    return ''.join([f'<option value="{item}">{item}</option>' for item in lista])
+    return ''.join([f'<option value="{item}">' for item in lista])
 
-HTML_FORM = """
-<!doctype html>
+HTML_FORM = """<!doctype html>
 <html>
 <head>
     <title>Formulario de Ventas - MYA TEXTIL</title>
@@ -36,7 +35,7 @@ HTML_FORM = """
         .form-wrapper { background: white; padding: 20px; border-radius: 8px; max-width: 1000px; margin: auto; }
         table { width: 100%; border-collapse: collapse; margin-top: 10px; }
         th, td { border: 1px solid #ccc; padding: 6px; text-align: center; }
-        input, select { width: 100%; box-sizing: border-box; padding: 4px; }
+        input { width: 100%; box-sizing: border-box; padding: 4px; }
         button { margin-top: 10px; padding: 10px 20px; background: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer; }
         .total-row td { font-weight: bold; }
     </style>
@@ -90,10 +89,8 @@ HTML_FORM = """
             <input type="date" name="fecha" value="{{ fecha_actual }}" required>
         </label>
         <label>Cliente:
-            <select name="cliente" id="cliente" required>
-                <option value="">--Seleccionar Cliente--</option>
-                {{ opciones_clientes|safe }}
-            </select>
+            <input list="clientes" name="cliente" id="cliente" required>
+            <datalist id="clientes">{{ opciones_clientes|safe }}</datalist>
         </label>
         <table>
             <thead>
@@ -103,18 +100,8 @@ HTML_FORM = """
                 {% for i in range(1, 31) %}
                 <tr>
                     <td>{{ i }}</td>
-                    <td>
-                        <select name="color_{{ i }}" id="color_{{ i }}">
-                            <option value="">--Color--</option>
-                            {{ opciones_colores|safe }}
-                        </select>
-                    </td>
-                    <td>
-                        <select name="producto_{{ i }}" id="producto_{{ i }}">
-                            <option value="">--Producto--</option>
-                            {{ opciones_productos|safe }}
-                        </select>
-                    </td>
+                    <td><input list="colores" name="color_{{ i }}" id="color_{{ i }}"></td>
+                    <td><input list="productos" name="producto_{{ i }}" id="producto_{{ i }}"></td>
                     <td><input type="text" name="partida_{{ i }}" id="partida_{{ i }}"></td>
                     <td><input type="number" name="kg_{{ i }}" id="kg_{{ i }}" step="0.01" oninput="calcularTotales()"></td>
                     <td><input type="number" name="precio_{{ i }}" id="precio_{{ i }}" step="0.01" oninput="calcularTotales()"></td>
@@ -132,6 +119,8 @@ HTML_FORM = """
         <button type="submit">Guardar Venta</button>
     </form>
     </div>
+    <datalist id="colores">{{ opciones_colores|safe }}</datalist>
+    <datalist id="productos">{{ opciones_productos|safe }}</datalist>
 </body>
 </html>
 """
