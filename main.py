@@ -1,3 +1,4 @@
+
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import gspread
@@ -6,7 +7,7 @@ import os
 import json
 
 app = Flask(__name__)
-CORS(app)  # Habilita CORS para permitir solicitudes desde Netlify u otros orígenes
+CORS(app)
 
 # Autenticación con Google Sheets
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
@@ -14,6 +15,7 @@ creds_data = json.loads(os.environ['GOOGLE_CREDS_JSON'])
 creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_data, scope)
 client = gspread.authorize(creds)
 sheet = client.open_by_key("1Ezm-sc-fbrtY5erE4NCyZKIyu_H6FP_BerxDUdzm-r4").sheet1
+datos_sheet = client.open_by_key("14w5C5rPPUHHzPgQRiVKfRMM97j7qRRqyLB0cACjx56c").worksheet("DATOS")
 
 @app.route("/", methods=["GET"])
 def index():
@@ -33,6 +35,21 @@ def guardar_ventas():
 
         return jsonify({"mensaje": "Datos guardados correctamente."})
 
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/opciones", methods=["GET"])
+def obtener_opciones():
+    try:
+        colores = datos_sheet.col_values(1)[1:]
+        productos = datos_sheet.col_values(2)[1:]
+        clientes = datos_sheet.col_values(3)[1:]
+
+        return jsonify({
+            "colores": colores,
+            "productos": productos,
+            "clientes": clientes
+        })
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
