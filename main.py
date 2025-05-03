@@ -14,8 +14,8 @@ creds_data = json.loads(os.environ['GOOGLE_CREDS_JSON'])
 creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_data, scope)
 client = gspread.authorize(creds)
 
-# Hoja de ventas y de datos
-sheet = client.open_by_key("1Ezm-sc-fbrtY5erE4NCyZKIyu_H6FP_BerxDUdzm-r4").sheet1
+# Cambiar de sheet1 a la hoja llamada "proformas"
+sheet = client.open_by_key("1Ezm-sc-fbrtY5erE4NCyZKIyu_H6FP_BerxDUdzm-r4").worksheet("proformas")
 datos_sheet = client.open_by_key("14w5C5rPPUHHzPgQRiVKfRMM97j7qRRqyLB0cACjx56c").worksheet("DATOS")
 
 @app.route("/", methods=["GET"])
@@ -31,8 +31,6 @@ def guardar_ventas():
         if not filas:
             return jsonify({"error": "No se recibieron filas válidas."}), 400
 
-        # Obtener número de venta actual y aumentarlo
-        ultima = sheet.cell(sheet.row_count, 1).value
         proximo = obtener_siguiente_numero()
 
         for fila in filas:
@@ -69,6 +67,9 @@ def obtener_siguiente_numero():
     registros = sheet.get_all_values()
     numeros = [int(fila[0]) for fila in registros[1:] if fila[0].isdigit()]
     return str(max(numeros) + 1) if numeros else "1"
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=10000)
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=10000)
