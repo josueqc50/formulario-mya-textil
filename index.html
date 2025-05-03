@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Formulario estilo Excel - MYA TEXTIL</title>
+  <style>
+    body { font-family: Arial; padding: 20px; background: #f4f4f4; }
+    .form-wrapper { background: #fff; padding: 20px; border-radius: 8px; max-width: 1000px; margin: auto; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    th, td { border: 1px solid #ccc; padding: 6px; text-align: center; }
+    td[contenteditable="true"] { background-color: #fff8dc; }
+    button { margin-top: 15px; padding: 10px 20px; background: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer; }
+    .total { font-weight: bold; text-align: right; margin-top: 10px; }
+  </style>
+  <script>
+    function calcularTotales() {
+      let totalGeneral = 0;
+      for (let i = 1; i <= 30; i++) {
+        const kg = parseFloat(document.getElementById('kg_' + i).innerText) || 0;
+        const precio = parseFloat(document.getElementById('precio_' + i).innerText) || 0;
+        const total = kg * precio;
+        document.getElementById('total_' + i).innerText = total.toFixed(2);
+        totalGeneral += total;
+      }
+      document.getElementById('total_general').innerText = totalGeneral.toFixed(2);
+    }
+
+    async function validarYEnviar() {
+      const cliente = document.getElementById('cliente').value.trim();
+      const fecha = document.getElementById('fecha').value;
+      const vendedor = 'Responsable'; // puedes hacerlo dinámico si deseas
+
+      if (!cliente) {
+        alert("Por favor ingresa el nombre del cliente.");
+        return false;
+      }
+
+      let filas = [];
+      for (let i = 1; i <= 30; i++) {
+        const color = document.getElementById('color_' + i).innerText.trim();
+        const producto = document.getElementById('producto_' + i).innerText.trim();
+        const partida = document.getElementById('partida_' + i).innerText.trim();
+        const kg = parseFloat(document.getElementById('kg_' + i).innerText) || 0;
+        const precio = parseFloat(document.getElementById('precio_' + i).innerText) || 0;
+        const total = kg * precio;
+
+        if (color && producto && partida && kg > 0 && precio > 0) {
+          filas.push([fecha, cliente, color, producto, partida, kg, precio, total.toFixed(2), vendedor]);
+        }
+      }
+
+      if (filas.length === 0) {
+        alert("Debes ingresar al menos una fila válida con datos completos.");
+        return false;
+      }
+
+      const response = await fetch("/submit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ filas: filas })
+      });
+
+      if (response.ok) {
+        alert("Venta guardada con éxito.");
+        location.reload();
+      } else {
+        alert("Error al guardar. Inténtalo de nuevo.");
+      }
+    }
+  </script>
+</head>
+<body>
+  <div class="form-wrapper">
+    <h2>Formulario de Ventas - MYA TEXTIL</h2>
+    <label>Fecha: <input type="date" id="fecha" value="" required></label>
+    <br><br>
+    <label>Cliente: <input type="text" id="cliente" required></label>
+    <br><br>
+    <table>
+      <thead>
+        <tr>
+          <th>#</th><th>Color</th><th>Producto</th><th>Partida</th><th>Kg</th><th>Precio Unitario</th><th>Total</th>
+        </tr>
+      </thead>
+      <tbody>
+        <script>
+          for (let i = 1; i <= 30; i++) {
+            document.write(`<tr>
+              <td>${i}</td>
+              <td contenteditable="true" id="color_${i}"></td>
+              <td contenteditable="true" id="producto_${i}"></td>
+              <td contenteditable="true" id="partida_${i}"></td>
+              <td contenteditable="true" id="kg_${i}" oninput="calcularTotales()"></td>
+              <td contenteditable="true" id="precio_${i}" oninput="calcularTotales()"></td>
+              <td id="total_${i}">0.00</td>
+            </tr>`);
+          }
+        </script>
+      </tbody>
+    </table>
+    <div class="total">TOTAL GENERAL: <span id="total_general">0.00</span></div>
+    <button onclick="validarYEnviar()">Guardar Venta</button>
+  </div>
+</body>
+</html>
