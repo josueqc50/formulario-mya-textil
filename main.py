@@ -1,8 +1,10 @@
+
 from flask import Flask, request, render_template_string, redirect
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 import json
 import os
+from datetime import datetime
 
 app = Flask(__name__)
 
@@ -12,16 +14,15 @@ creds_data = json.loads(os.environ['GOOGLE_CREDS_JSON'])
 creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_data, scope)
 client = gspread.authorize(creds)
 
-# Hojas de trabajo
+# Hojas de cálculo
 sheet_ventas = client.open_by_key("1Ezm-sc-fbrtY5erE4NCyZKIyu_H6FP_BerxDUdzm-r4").sheet1
 sheet_datos = client.open_by_key("14w5C5rPPUHHzPgQRiVKfRMM97j7qRRqyLB0cACjx56c").worksheet("DATOS")
 
-# Obtener listas desde la hoja DATOS
+# Obtener listas desde hoja DATOS
 colores = sheet_datos.col_values(1)[1:]
 productos = sheet_datos.col_values(2)[1:]
 clientes = sheet_datos.col_values(3)[1:]
 
-# Construir opciones HTML
 def construir_options(lista):
     return ''.join([f'<option value="{item}">{item}</option>' for item in lista])
 
@@ -51,15 +52,45 @@ HTML_FORM = """
             }
             document.getElementById('total_general').innerText = totalGeneral.toFixed(2);
         }
+
+        function validarFormulario() {
+            let cliente = document.getElementById('cliente').value.trim();
+            if (!cliente) {
+                alert("Por favor ingresa el nombre del cliente.");
+                return false;
+            }
+
+            let filasValidas = 0;
+            for (let i = 1; i <= 30; i++) {
+                let color = document.getElementById('color_' + i).value.trim();
+                let producto = document.getElementById('producto_' + i).value.trim();
+                let partida = document.getElementById('partida_' + i).value.trim();
+                let kg = parseFloat(document.getElementById('kg_' + i).value) || 0;
+                let precio = parseFloat(document.getElementById('precio_' + i).value) || 0;
+
+                if (color && producto && partida && kg > 0 && precio > 0) {
+                    filasValidas++;
+                }
+            }
+
+            if (filasValidas === 0) {
+                alert("Debes ingresar al menos una fila con color, producto, partida, kg y precio válidos.");
+                return false;
+            }
+
+            return true;
+        }
     </script>
 </head>
 <body>
     <div class="form-wrapper">
-    <form action="/submit" method="post">
+    <form id="formulario" action="/submit" method="post" onsubmit="return validarFormulario()">
         <h2>MYA TEXTIL</h2>
-        <label>Fecha: <input type="date" name="fecha" required></label>
+        <label>Fecha:
+            <input type="date" name="fecha" value="{{ fecha_actual }}" required>
+        </label>
         <label>Cliente:
-            <select name="cliente" required>
+            <select name="cliente" id="cliente" required>
                 <option value="">--Seleccionar Cliente--</option>
                 {{ opciones_clientes|safe }}
             </select>
@@ -73,18 +104,18 @@ HTML_FORM = """
                 <tr>
                     <td>{{ i }}</td>
                     <td>
-                        <select name="color_{{ i }}">
+                        <select name="color_{{ i }}" id="color_{{ i }}">
                             <option value="">--Color--</option>
                             {{ opciones_colores|safe }}
                         </select>
                     </td>
                     <td>
-                        <select name="producto_{{ i }}">
+                        <select name="producto_{{ i }}" id="producto_{{ i }}">
                             <option value="">--Producto--</option>
                             {{ opciones_productos|safe }}
                         </select>
                     </td>
-                    <td><input type="text" name="partida_{{ i }}"></td>
+                    <td><input type="text" name="partida_{{ i }}" id="partida_{{ i }}"></td>
                     <td><input type="number" name="kg_{{ i }}" id="kg_{{ i }}" step="0.01" oninput="calcularTotales()"></td>
                     <td><input type="number" name="precio_{{ i }}" id="precio_{{ i }}" step="0.01" oninput="calcularTotales()"></td>
                     <td><input type="number" name="total_{{ i }}" id="total_{{ i }}" readonly></td>
@@ -95,7 +126,9 @@ HTML_FORM = """
                 <tr class="total-row"><td colspan="6">TOTAL GENERAL</td><td id="total_general">0.00</td></tr>
             </tfoot>
         </table>
-        <label>Vendedor Responsable: <input type="text" name="vendedor" required></label>
+        <label>Vendedor Responsable:
+            <input type="text" name="vendedor" required>
+        </label>
         <button type="submit">Guardar Venta</button>
     </form>
     </div>
@@ -109,23 +142,38 @@ def index():
         HTML_FORM,
         opciones_colores=construir_options(colores),
         opciones_productos=construir_options(productos),
-        opciones_clientes=construir_options(clientes)
+        opciones_clientes=construir_options(clientes),
+        fecha_actual=datetime.now().strftime('%Y-%m-%d')
     )
 
 @app.route('/submit', methods=['POST'])
 def submit():
     try:
-        fecha = request.form['fecha']
-        cliente = request.form['cliente']
-        producto = request.form['producto']
-        color = request.form['color']
-        partida = request.form['partida']
-        kg = float(request.form['kg'])
-        precio_unit = float(request.form['precio_unit'])
-        total = kg * precio_unit
-        vendedor = request.form['vendedor']
+        fecha = request.form.get('fecha', '').strip()
+        cliente = request.form.get('cliente', '').strip()
+        vendedor = request.form.get('vendedor', '').strip()
 
-        sheet.append_row([fecha, cliente, color, producto, partida, kg, precio_unit, total, vendedor])
+        if not cliente:
+            return "<h2>Error: El campo CLIENTE es obligatorio.</h2>", 400
+
+        filas_guardadas = 0
+        for i in range(1, 31):
+            color = request.form.get(f'color_{i}', '').strip()
+            producto = request.form.get(f'producto_{i}', '').strip()
+            partida = request.form.get(f'partida_{i}', '').strip()
+            kg = request.form.get(f'kg_{i}', '0').strip()
+            precio = request.form.get(f'precio_{i}', '0').strip()
+            total = request.form.get(f'total_{i}', '0').strip()
+
+            if all([color, producto, partida]) and float(kg) > 0 and float(precio) > 0:
+                sheet_ventas.append_row([
+                    fecha, cliente, color, producto, partida,
+                    float(kg), float(precio), float(total), vendedor
+                ])
+                filas_guardadas += 1
+
+        if filas_guardadas == 0:
+            return "<h2>Error: Debes ingresar al menos una fila con datos completos.</h2>", 400
 
         return redirect('/')
     except Exception as e:
