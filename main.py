@@ -13,6 +13,10 @@ creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_data, scope)
 client = gspread.authorize(creds)
 sheet = client.open_by_key("1Ezm-sc-fbrtY5erE4NCyZKIyu_H6FP_BerxDUdzm-r4").sheet1
 
+@app.route("/", methods=["GET"])
+def index():
+    return "<h1>API de formulario de ventas funcionando</h1>"
+
 @app.route("/submit", methods=["POST"])
 def guardar_ventas():
     try:
