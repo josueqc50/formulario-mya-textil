@@ -114,19 +114,22 @@ def index():
 
 @app.route('/submit', methods=['POST'])
 def submit():
-    fecha = request.form['fecha']
-    cliente = request.form['cliente']
-    vendedor = request.form['vendedor']
-    for i in range(1, 31):
-        color = request.form.get(f'color_{i}', '')
-        producto = request.form.get(f'producto_{i}', '')
-        partida = request.form.get(f'partida_{i}', '')
-        kg = request.form.get(f'kg_{i}', '')
-        precio = request.form.get(f'precio_{i}', '')
-        total = request.form.get(f'total_{i}', '')
-        if any([color, producto, partida, kg, precio, total]):
-            sheet_ventas.append_row([fecha, cliente, color, producto, partida, kg, precio, total, vendedor])
-    return redirect('/')
+    try:
+        fecha = request.form['fecha']
+        cliente = request.form['cliente']
+        producto = request.form['producto']
+        color = request.form['color']
+        partida = request.form['partida']
+        kg = float(request.form['kg'])
+        precio_unit = float(request.form['precio_unit'])
+        total = kg * precio_unit
+        vendedor = request.form['vendedor']
+
+        sheet.append_row([fecha, cliente, color, producto, partida, kg, precio_unit, total, vendedor])
+
+        return redirect('/')
+    except Exception as e:
+        return f"<h2>Error al guardar la venta</h2><p>{str(e)}</p>", 500
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=10000)
