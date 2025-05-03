@@ -1,10 +1,12 @@
 from flask import Flask, request, jsonify
+from flask_cors import CORS
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 import os
 import json
 
 app = Flask(__name__)
+CORS(app)  # Habilita CORS para permitir solicitudes desde Netlify u otros orígenes
 
 # Autenticación con Google Sheets
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
